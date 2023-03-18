@@ -2,8 +2,13 @@ package edu.byu.cs.tweeter.server.service;
 
 import edu.byu.cs.tweeter.model.domain.AuthToken;
 import edu.byu.cs.tweeter.model.domain.User;
+import edu.byu.cs.tweeter.model.net.request.GetUserRequest;
 import edu.byu.cs.tweeter.model.net.request.LoginRequest;
+import edu.byu.cs.tweeter.model.net.request.LogoutRequest;
+import edu.byu.cs.tweeter.model.net.request.RegisterRequest;
+import edu.byu.cs.tweeter.model.net.response.GetUserResponse;
 import edu.byu.cs.tweeter.model.net.response.LoginResponse;
+import edu.byu.cs.tweeter.model.net.response.LogoutResponse;
 import edu.byu.cs.tweeter.util.FakeData;
 
 public class UserService {
@@ -49,5 +54,40 @@ public class UserService {
      */
     FakeData getFakeData() {
         return FakeData.getInstance();
+    }
+
+    public LoginResponse register(RegisterRequest request) {
+        if(request.getUsername() == null){
+            throw new RuntimeException("[Bad Request] Missing a username");
+        } else if(request.getPassword() == null) {
+            throw new RuntimeException("[Bad Request] Missing a password");
+        }else if(request.getFirstName() == null) {
+            throw new RuntimeException("[Bad Request] Missing first name");
+        }else if(request.getLastName() == null) {
+            throw new RuntimeException("[Bad Request] Missing last name");
+        }else if (request.getImage() == null) {
+            throw new RuntimeException("[Bad Request] Missing profile picture");
+        }
+        User user = getDummyUser();
+        AuthToken authToken = getDummyAuthToken();
+        return new LoginResponse(user, authToken);
+    }
+
+    public GetUserResponse getUser(GetUserRequest request){
+        if(request.getAlias() == null){
+            throw new RuntimeException("[Bad Request] Missing a user");
+        } else if(request.getAuthToken() == null) {
+            throw new RuntimeException("[Bad Request] Missing authtoken");
+        }
+        User user = getFakeData().findUserByAlias(request.getAlias());
+        return new GetUserResponse(user);
+    }
+
+    public LogoutResponse logout(LogoutRequest request) {
+        if(request.getAuthToken() == null) {
+            throw new RuntimeException("[Bad Request] Missing authtoken");
+        }
+        //TODO: Implement deleting of user token through userDAO
+        return new LogoutResponse();
     }
 }

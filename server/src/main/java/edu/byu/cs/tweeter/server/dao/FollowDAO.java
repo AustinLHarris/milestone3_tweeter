@@ -2,10 +2,17 @@ package edu.byu.cs.tweeter.server.dao;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import edu.byu.cs.tweeter.model.domain.User;
+import edu.byu.cs.tweeter.model.net.request.FollowUserRequest;
+import edu.byu.cs.tweeter.model.net.request.FollowersRequest;
 import edu.byu.cs.tweeter.model.net.request.FollowingRequest;
+import edu.byu.cs.tweeter.model.net.request.IsFollowerRequest;
+import edu.byu.cs.tweeter.model.net.response.FollowUserResponse;
 import edu.byu.cs.tweeter.model.net.response.FollowingResponse;
+import edu.byu.cs.tweeter.model.net.response.GetFollowCountResponse;
+import edu.byu.cs.tweeter.model.net.response.IsFollowerResponse;
 import edu.byu.cs.tweeter.util.FakeData;
 
 /**
@@ -20,10 +27,15 @@ public class FollowDAO {
      * @param follower the User whose count of how many following is desired.
      * @return said count.
      */
-    public Integer getFolloweeCount(User follower) {
+    public GetFollowCountResponse getFolloweeCount(String follower) {
         // TODO: uses the dummy data.  Replace with a real implementation.
         assert follower != null;
-        return getDummyFollowees().size();
+        return new GetFollowCountResponse(getDummyFollowees().size());
+    }
+    public GetFollowCountResponse getFollowerCount(String follower) {
+        // TODO: uses the dummy data.  Replace with a real implementation.
+        assert follower != null;
+        return new GetFollowCountResponse(getDummyFollowees().size());
     }
 
     /**
@@ -49,6 +61,41 @@ public class FollowDAO {
         if(request.getLimit() > 0) {
             if (allFollowees != null) {
                 int followeesIndex = getFolloweesStartingIndex(request.getLastFolloweeAlias(), allFollowees);
+
+                for(int limitCounter = 0; followeesIndex < allFollowees.size() && limitCounter < request.getLimit(); followeesIndex++, limitCounter++) {
+                    responseFollowees.add(allFollowees.get(followeesIndex));
+                }
+
+                hasMorePages = followeesIndex < allFollowees.size();
+            }
+        }
+
+        return new FollowingResponse(responseFollowees, hasMorePages);
+    }
+
+    /**
+     * Gets the users from the database that the user specified in the request is following. Uses
+     * information in the request object to limit the number of followees returned and to return the
+     * next set of followees after any that were returned in a previous request. The current
+     * implementation returns generated data and doesn't actually access a database.
+     *
+     * @param request contains information about the user whose followees are to be returned and any
+     *                other information required to satisfy the request.
+     * @return the followees.
+     */
+    public FollowingResponse getFollowers(FollowersRequest request) {
+        // TODO: Generates dummy data. Replace with a real implementation.
+        assert request.getLimit() > 0;
+        assert request.getFollowerAlias() != null;
+
+        List<User> allFollowees = getDummyFollowees();
+        List<User> responseFollowees = new ArrayList<>(request.getLimit());
+
+        boolean hasMorePages = false;
+
+        if(request.getLimit() > 0) {
+            if (allFollowees != null) {
+                int followeesIndex = getFolloweesStartingIndex(request.getLastFollowerAlias(), allFollowees);
 
                 for(int limitCounter = 0; followeesIndex < allFollowees.size() && limitCounter < request.getLimit(); followeesIndex++, limitCounter++) {
                     responseFollowees.add(allFollowees.get(followeesIndex));
@@ -109,5 +156,21 @@ public class FollowDAO {
      */
     FakeData getFakeData() {
         return FakeData.getInstance();
+    }
+
+    public FollowUserResponse followUser(FollowUserRequest request) {
+        //TODO: Actually access the database
+        return new FollowUserResponse();
+    }
+
+    public FollowUserResponse unfollowUser(FollowUserRequest request) {
+        //TODO: Actually access the database
+        return new FollowUserResponse();
+    }
+
+    public IsFollowerResponse isFollower(IsFollowerRequest request) {
+        boolean isFollower = new Random().nextInt() > 0;
+        //TODO: Actually access the database
+        return new IsFollowerResponse(isFollower);
     }
 }

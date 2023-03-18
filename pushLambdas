@@ -1,0 +1,21 @@
+#!/bin/bash
+arr=(
+        "getfollowing"
+        "login"
+        "register"
+        "getfollowers"
+        "postStatus"
+        "logout"
+        "getUser"
+        "follow"
+        "unfollow"
+        "countFollowers"
+        "countFollowees"
+        "story"
+        "feed"
+        "isfollower"
+    )
+for FUNCTION_NAME in "${arr[@]}"
+do
+  aws lambda update-function-code --function-name $FUNCTION_NAME --zip-file fileb://./server/build/libs/server-all.jar &
+done
