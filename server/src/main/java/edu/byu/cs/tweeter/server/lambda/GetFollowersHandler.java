@@ -4,8 +4,8 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 
 import edu.byu.cs.tweeter.model.net.request.FollowersRequest;
-import edu.byu.cs.tweeter.model.net.request.FollowingRequest;
 import edu.byu.cs.tweeter.model.net.response.FollowingResponse;
+import edu.byu.cs.tweeter.server.dao.DynamoFactory;
 import edu.byu.cs.tweeter.server.service.FollowService;
 
 public class GetFollowersHandler implements RequestHandler<FollowersRequest, FollowingResponse> {
@@ -20,7 +20,7 @@ public class GetFollowersHandler implements RequestHandler<FollowersRequest, Fol
      */
     @Override
     public FollowingResponse handleRequest(FollowersRequest request, Context context) {
-        FollowService service = new FollowService();
+        FollowService service = new FollowService(new DynamoFactory());
         return service.getFollowers(request);
     }
 }

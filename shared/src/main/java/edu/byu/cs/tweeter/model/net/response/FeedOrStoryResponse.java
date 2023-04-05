@@ -12,11 +12,15 @@ public class FeedOrStoryResponse extends PagedResponse{
         this.statuses = statuses;
     }
 
-    FeedOrStoryResponse(boolean success, String message, boolean hasMorePages) {
+    FeedOrStoryResponse(String message) {
         super(false, message, false);
     }
 
     public List<Status> getStatuses() {
         return statuses;
+    }
+
+    public void setStatuses(List<Status> statuses) {
+        this.statuses = statuses;
     }
 }

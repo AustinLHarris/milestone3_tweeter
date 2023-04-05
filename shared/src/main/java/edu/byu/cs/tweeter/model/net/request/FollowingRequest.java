@@ -6,9 +6,8 @@ import edu.byu.cs.tweeter.model.domain.AuthToken;
  * Contains all the information needed to make a request to have the server return the next page of
  * followees for a specified follower.
  */
-public class FollowingRequest {
+public class FollowingRequest extends AuthorizedRequest{
 
-    private AuthToken authToken;
     private String followerAlias;
     private int limit;
     public String lastFolloweeAlias;
@@ -16,7 +15,7 @@ public class FollowingRequest {
     /**
      * Allows construction of the object from Json. Private so it won't be called in normal code.
      */
-    private FollowingRequest() {}
+    private FollowingRequest() {super();}
 
     /**
      * Creates an instance.
@@ -28,29 +27,13 @@ public class FollowingRequest {
      *                     previous request).
      */
     public FollowingRequest(AuthToken authToken, String followerAlias, int limit, String lastFolloweeAlias) {
-        this.authToken = authToken;
+        super(authToken);
         this.followerAlias = followerAlias;
         this.limit = limit;
         this.lastFolloweeAlias = lastFolloweeAlias;
     }
 
-    /**
-     * Returns the auth token of the user who is making the request.
-     *
-     * @return the auth token.
-     */
-    public AuthToken getAuthToken() {
-        return authToken;
-    }
 
-    /**
-     * Sets the auth token.
-     *
-     * @param authToken the auth token.
-     */
-    public void setAuthToken(AuthToken authToken) {
-        this.authToken = authToken;
-    }
 
     /**
      * Returns the follower whose followees are to be returned by this request.

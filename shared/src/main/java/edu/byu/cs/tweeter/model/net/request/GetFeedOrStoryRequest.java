@@ -1,31 +1,23 @@
 package edu.byu.cs.tweeter.model.net.request;
 
 import edu.byu.cs.tweeter.model.domain.AuthToken;
-import edu.byu.cs.tweeter.model.domain.Status;
 
-public class GetFeedOrStoryRequest {
-    private AuthToken authToken;
+public class GetFeedOrStoryRequest extends AuthorizedRequest{
     private String targetUser;
     private int limit;
     private String lastItem;
 
     public GetFeedOrStoryRequest() {
+        super();
     }
 
     public GetFeedOrStoryRequest(AuthToken authToken, String targetUser, int limit, String lastStatus) {
-        this.authToken = authToken;
+        super(authToken);
         this.targetUser = targetUser;
         this.limit = limit;
         this.lastItem = lastStatus;
     }
 
-    public AuthToken getAuthToken() {
-        return authToken;
-    }
-
-    public void setAuthToken(AuthToken authToken) {
-        this.authToken = authToken;
-    }
 
     public String getTargetUser() {
         return targetUser;
@@ -43,11 +35,11 @@ public class GetFeedOrStoryRequest {
         this.limit = limit;
     }
 
-    public String getLastStatus() {
+    public String getLastItem() {
         return lastItem;
     }
 
-    public void setLastStatus(String lastStatus) {
+    public void setLastItem(String lastStatus) {
         this.lastItem = lastStatus;
     }
 }

@@ -1,6 +1,5 @@
 package edu.byu.cs.tweeter.client.model.service;
 
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -18,16 +17,15 @@ import edu.byu.cs.tweeter.client.model.service.backgroundTask.handler.GetFollowi
 import edu.byu.cs.tweeter.client.model.service.backgroundTask.handler.GetFollowingHandler;
 import edu.byu.cs.tweeter.client.model.service.backgroundTask.handler.IsFollowerHandler;
 import edu.byu.cs.tweeter.client.model.service.backgroundTask.handler.SimpleNotificationHandler;
+import edu.byu.cs.tweeter.client.model.service.observer.PagedNotificationObserver;
 import edu.byu.cs.tweeter.client.model.service.observer.SimpleNotificationObserver;
-import edu.byu.cs.tweeter.client.presenter.GetFollowersPresenter;
-import edu.byu.cs.tweeter.client.presenter.GetFollowingPresenter;
 import edu.byu.cs.tweeter.client.presenter.GetMainPresenter;
 import edu.byu.cs.tweeter.client.presenter.PagedPresenter;
 import edu.byu.cs.tweeter.model.domain.User;
 
 public class FollowService extends SingleThreadService{
 
-    public void loadMoreFollowing(User user, int pageSize, User lastFollowee, PagedPresenter.GetPagedObserver observer) {
+    public void loadMoreFollowing(User user, int pageSize, User lastFollowee, PagedNotificationObserver<User> observer) {
         GetFollowingTask getFollowingTask = new GetFollowingTask(Cache.getInstance().getCurrUserAuthToken(),
                 user, pageSize, lastFollowee, new GetFollowingHandler(observer));
         execute(getFollowingTask);

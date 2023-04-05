@@ -1,5 +1,10 @@
 package edu.byu.cs.tweeter.server.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import edu.byu.cs.tweeter.model.domain.AuthToken;
+import edu.byu.cs.tweeter.model.domain.User;
 import edu.byu.cs.tweeter.model.net.request.FollowUserRequest;
 import edu.byu.cs.tweeter.model.net.request.FollowersRequest;
 import edu.byu.cs.tweeter.model.net.request.FollowingRequest;
@@ -9,12 +14,20 @@ import edu.byu.cs.tweeter.model.net.response.FollowUserResponse;
 import edu.byu.cs.tweeter.model.net.response.FollowingResponse;
 import edu.byu.cs.tweeter.model.net.response.GetFollowCountResponse;
 import edu.byu.cs.tweeter.model.net.response.IsFollowerResponse;
+import edu.byu.cs.tweeter.server.dao.DAOFactory;
 import edu.byu.cs.tweeter.server.dao.FollowDAO;
+import edu.byu.cs.tweeter.server.dao.dynamoclasses.DynamoUser;
+import edu.byu.cs.tweeter.server.dao.dynamoclasses.Follows;
+import edu.byu.cs.tweeter.util.Pair;
 
 /**
  * Contains the business logic for getting the users a user is following.
  */
-public class FollowService {
+public class FollowService extends Service{
+
+    public FollowService(DAOFactory factory) {
+        super(factory);
+    }
 
     /**
      * Returns the users that the user specified in the request is following. Uses information in
@@ -31,7 +44,17 @@ public class FollowService {
         } else if(request.getLimit() <= 0) {
             throw new RuntimeException("[Bad Request] Request needs to have a positive limit");
         }
-        return getFollowingDAO().getFollowees(request);
+        checkToken(request);
+        return createFollowingResponse(getFolloweesHelper(request));
+    }
+
+    private FollowingResponse createFollowingResponse(Pair<List<String>, Boolean> page) {
+        List<User> responseUsers = new ArrayList<>(page.getFirst().size());
+        for(String alias: page.getFirst()){
+            DynamoUser dbUser = factory.getUserDAO().getUser(alias);
+            responseUsers.add(new User(dbUser.getFirstName(),dbUser.getLastName(),dbUser.getUser_handle(),dbUser.getImageURL()));
+        }
+        return new FollowingResponse(responseUsers, page.getSecond());
     }
 
 
@@ -49,26 +72,65 @@ public class FollowService {
             throw new RuntimeException("[Bad Request] Request needs to have a follower alias");
         } else if(request.getLimit() <= 0) {
             throw new RuntimeException("[Bad Request] Request needs to have a positive limit");
+        }else if(request.getAuthToken() == null) {
+            throw new RuntimeException("[Missing Authorization] Missing authtoken");
         }
-        return getFollowingDAO().getFollowers(request);
+        checkToken(request);
+
+        return createFollowingResponse(getFollowersHelper(request));
     }
+
+
+    /**
+     * Gets the users from the database that the user specified in the request is following. Uses
+     * information in the request object to limit the number of followees returned and to return the
+     * next set of followees after any that were returned in a previous request. The current
+     * implementation returns generated data and doesn't actually access a database.
+     *
+     * @param request contains information about the user whose followees are to be returned and any
+     *                other information required to satisfy the request.
+     * @return the followees.
+     */
+
 
     public FollowUserResponse followUser(FollowUserRequest request) {
         if(request.getAliasToToggleFollow() == null) {
             throw new RuntimeException("[Bad Request] Request needs to have a user to follow");
         } else if(request.getAuthToken() == null) {
-            throw new RuntimeException("[Bad Request] Request missing authtoken");
+            throw new RuntimeException("[Missing Authorization] Missing authtoken");
         }
-        return getFollowingDAO().followUser(request);
+        checkToken(request);
+        String user = getUserFromToken(request.getAuthToken());
+        factory.getFollowingDAO().recordFollow(user, request.getAliasToToggleFollow());
+        // Adjust following count for follower
+        DynamoUser dbFollower = factory.getUserDAO().getUser(user);
+        dbFollower.setNumFollowing(dbFollower.getNumFollowing() + 1);
+        factory.getUserDAO().putUser(dbFollower);
+        // Adjust follower count for followee
+        DynamoUser dbFollowee = factory.getUserDAO().getUser(request.getAliasToToggleFollow());
+        dbFollowee.setNumFolllowers(dbFollowee.getNumFolllowers() + 1);
+        factory.getUserDAO().putUser(dbFollowee);
+        return new FollowUserResponse();
     }
 
     public FollowUserResponse unfollowUser(FollowUserRequest request) {
         if(request.getAliasToToggleFollow() == null) {
             throw new RuntimeException("[Bad Request] Request needs to have a user to unfollow");
         } else if(request.getAuthToken() == null) {
-            throw new RuntimeException("[Bad Request] Request missing authtoken");
+            throw new RuntimeException("[Bad Request] Missing authtoken");
         }
-        return getFollowingDAO().unfollowUser(request);
+        checkToken(request);
+        String user = getUserFromToken(request.getAuthToken());
+        factory.getFollowingDAO().deleteFollow(user, request.getAliasToToggleFollow());
+        // Adjust following count for follower
+        DynamoUser dbFollower = factory.getUserDAO().getUser(user);
+        dbFollower.setNumFollowing(dbFollower.getNumFollowing() - 1);
+        factory.getUserDAO().putUser(dbFollower);
+        // Adjust follower count for followee
+        DynamoUser dbFollowee = factory.getUserDAO().getUser(request.getAliasToToggleFollow());
+        dbFollowee.setNumFolllowers(dbFollowee.getNumFolllowers() - 1);
+        factory.getUserDAO().putUser(dbFollowee);
+        return new FollowUserResponse();
     }
 
     /**
@@ -78,27 +140,31 @@ public class FollowService {
      *
      * @return the instance.
      */
-    FollowDAO getFollowingDAO() {
-        return new FollowDAO();
+
+    private String getUserFromToken(AuthToken token){
+        return factory.getAuthDAO().getAuth(token.getToken()).getUser_handle();
     }
 
 
     public GetFollowCountResponse getFollowersCount(GetFollowCountRequest request) {
         if(request.getTargetUser() == null) {
             throw new RuntimeException("[Bad Request] Request needs to have a user");
-        } else if(request.getAuthToken() == null) {
-            throw new RuntimeException("[Bad Request] Request missing authtoken");
+        }else if(request.getAuthToken() == null) {
+            throw new RuntimeException("[Bad Request] Missing authtoken");
         }
-        return getFollowingDAO().getFollowerCount(request.getTargetUser());
+        checkToken(request);
+
+        return new GetFollowCountResponse(factory.getUserDAO().getUser(request.getTargetUser()).getNumFolllowers());
     }
 
     public GetFollowCountResponse getFollowingCount(GetFollowCountRequest request) {
         if(request.getTargetUser() == null) {
             throw new RuntimeException("[Bad Request] Request needs to have a user");
-        } else if(request.getAuthToken() == null) {
-            throw new RuntimeException("[Bad Request] Request missing authtoken");
+        }else if(request.getAuthToken() == null) {
+            throw new RuntimeException("[Bad Request] Missing authtoken");
         }
-        return getFollowingDAO().getFolloweeCount(request.getTargetUser());
+        checkToken(request);
+        return new GetFollowCountResponse(factory.getUserDAO().getUser(request.getTargetUser()).getNumFollowing());
     }
 
     public IsFollowerResponse isFollower(IsFollowerRequest request) {
@@ -106,9 +172,16 @@ public class FollowService {
             throw new RuntimeException("[Bad Request] Request needs to have a follower to check");
         }else if(request.getFollowee() == null) {
             throw new RuntimeException("[Bad Request] Request needs to have followed user");
-        } else if(request.getAuthToken() == null) {
-            throw new RuntimeException("[Bad Request] Request missing authtoken");
+        }else if(request.getAuthToken() == null) {
+            throw new RuntimeException("[Bad Request] Missing authtoken");
         }
-        return getFollowingDAO().isFollower(request);
+        checkToken(request);
+        Follows follow = factory.getFollowingDAO().getFollow(request.getFollower().getAlias(),request.getFollowee().getAlias());
+        if(follow != null){
+            System.out.println("Sending that this person is a follower");
+            return new IsFollowerResponse(true);
+        }
+        else { return new IsFollowerResponse(false); }
+
     }
 }

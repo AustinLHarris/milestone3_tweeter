@@ -34,6 +34,10 @@ public class FollowingResponse extends PagedResponse {
         this.followees = followees;
     }
 
+    public void setFollowees(List<User> followees) {
+        this.followees = followees;
+    }
+
     /**
      * Returns the followees for the corresponding request.
      *

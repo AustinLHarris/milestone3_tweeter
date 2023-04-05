@@ -14,8 +14,14 @@ arr=(
         "story"
         "feed"
         "isfollower"
+        "updateFeeds"
+        "postUpdateFeedMessages"
     )
+aws s3 cp ./server/build/libs/server-all.jar s3://cs340tweeter
 for FUNCTION_NAME in "${arr[@]}"
 do
-  aws lambda update-function-code --function-name $FUNCTION_NAME --zip-file fileb://./server/build/libs/server-all.jar &
+  aws lambda update-function-code \
+    --function-name $FUNCTION_NAME \
+    --s3-bucket cs340tweeter \
+    --s3-key server-all.jar &
 done

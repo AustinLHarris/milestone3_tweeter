@@ -1,10 +1,7 @@
 package edu.byu.cs.tweeter.model.domain;
 
 import java.io.Serializable;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -74,7 +71,7 @@ public class Status implements Serializable {
         Status status = (Status) o;
         return Objects.equals(post, status.post) &&
                 Objects.equals(user, status.user) &&
-                Objects.equals(timestamp, status.timestamp) &&
+//                Objects.equals(timestamp, status.timestamp) &&
                 Objects.equals(mentions, status.mentions) &&
                 Objects.equals(urls, status.urls);
     }

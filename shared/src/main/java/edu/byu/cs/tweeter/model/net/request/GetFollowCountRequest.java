@@ -2,24 +2,16 @@ package edu.byu.cs.tweeter.model.net.request;
 
 import edu.byu.cs.tweeter.model.domain.AuthToken;
 
-public class GetFollowCountRequest {
-    private AuthToken authToken;
+public class GetFollowCountRequest extends AuthorizedRequest{
     private String targetUser;
 
     public GetFollowCountRequest() {
+        super();
     }
 
     public GetFollowCountRequest(AuthToken authToken, String targetUser) {
-        this.authToken = authToken;
+        super(authToken);
         this.targetUser = targetUser;
-    }
-
-    public AuthToken getAuthToken() {
-        return authToken;
-    }
-
-    public void setAuthToken(AuthToken authToken) {
-        this.authToken = authToken;
     }
 
     public String getTargetUser() {

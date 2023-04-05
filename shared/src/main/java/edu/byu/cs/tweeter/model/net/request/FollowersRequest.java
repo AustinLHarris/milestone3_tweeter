@@ -2,8 +2,8 @@ package edu.byu.cs.tweeter.model.net.request;
 
 import edu.byu.cs.tweeter.model.domain.AuthToken;
 
-public class FollowersRequest {
-    private AuthToken authToken;
+public class FollowersRequest extends AuthorizedRequest {
+
     private String followerAlias;
     private int limit;
     public String lastFollowerAlias;
@@ -11,7 +11,9 @@ public class FollowersRequest {
     /**
      * Allows construction of the object from Json. Private so it won't be called in normal code.
      */
-    private FollowersRequest() {}
+    private FollowersRequest() {
+        super();
+    }
 
     /**
      * Creates an instance.
@@ -23,29 +25,13 @@ public class FollowersRequest {
      *                     previous request).
      */
     public FollowersRequest(AuthToken authToken, String followerAlias, int limit, String lastFollowerAlias) {
-        this.authToken = authToken;
+        super(authToken);
         this.followerAlias = followerAlias;
         this.limit = limit;
         this.lastFollowerAlias = lastFollowerAlias;
     }
 
-    /**
-     * Returns the auth token of the user who is making the request.
-     *
-     * @return the auth token.
-     */
-    public AuthToken getAuthToken() {
-        return authToken;
-    }
 
-    /**
-     * Sets the auth token.
-     *
-     * @param authToken the auth token.
-     */
-    public void setAuthToken(AuthToken authToken) {
-        this.authToken = authToken;
-    }
 
     /**
      * Returns the follower whose followees are to be returned by this request.

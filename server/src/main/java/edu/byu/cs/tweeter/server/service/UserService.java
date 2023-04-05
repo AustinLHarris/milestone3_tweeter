@@ -1,5 +1,11 @@
 package edu.byu.cs.tweeter.server.service;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
+import java.util.Base64;
+
 import edu.byu.cs.tweeter.model.domain.AuthToken;
 import edu.byu.cs.tweeter.model.domain.User;
 import edu.byu.cs.tweeter.model.net.request.GetUserRequest;
@@ -9,9 +15,15 @@ import edu.byu.cs.tweeter.model.net.request.RegisterRequest;
 import edu.byu.cs.tweeter.model.net.response.GetUserResponse;
 import edu.byu.cs.tweeter.model.net.response.LoginResponse;
 import edu.byu.cs.tweeter.model.net.response.LogoutResponse;
-import edu.byu.cs.tweeter.util.FakeData;
+import edu.byu.cs.tweeter.server.dao.DAOFactory;
+import edu.byu.cs.tweeter.server.dao.dynamoclasses.DynamoAuthToken;
+import edu.byu.cs.tweeter.server.dao.dynamoclasses.DynamoUser;
 
-public class UserService {
+public class UserService extends Service{
+
+    public UserService(DAOFactory factory) {
+        super(factory);
+    }
 
     public LoginResponse login(LoginRequest request) {
         if(request.getUsername() == null){
@@ -19,42 +31,20 @@ public class UserService {
         } else if(request.getPassword() == null) {
             throw new RuntimeException("[Bad Request] Missing a password");
         }
-
-        // TODO: Generates dummy data. Replace with a real implementation.
-        User user = getDummyUser();
-        AuthToken authToken = getDummyAuthToken();
-        return new LoginResponse(user, authToken);
+        DynamoAuthToken dbToken = factory.getAuthDAO().createAuth(request.getUsername());
+        AuthToken authToken = new AuthToken(dbToken.getAuthtoken(), dbToken.getTimestamp());
+        DynamoUser dynamoUser = factory.getUserDAO().getUser(request.getUsername());
+        if(dynamoUser == null){ return new LoginResponse("Incorrect password or username"); }
+        if(verifyPassword(request.getPassword(),dynamoUser.getPassword(),dynamoUser.getSalt())){
+            User user = createUserFromDB(dynamoUser);
+            return new LoginResponse(user, authToken);
+        } else{
+            throw new RuntimeException("[Bad Request] Password or username is incorrect");
+        }
     }
 
-    /**
-     * Returns the dummy user to be returned by the login operation.
-     * This is written as a separate method to allow mocking of the dummy user.
-     *
-     * @return a dummy user.
-     */
-    User getDummyUser() {
-        return getFakeData().getFirstUser();
-    }
 
-    /**
-     * Returns the dummy auth token to be returned by the login operation.
-     * This is written as a separate method to allow mocking of the dummy auth token.
-     *
-     * @return a dummy auth token.
-     */
-    AuthToken getDummyAuthToken() {
-        return getFakeData().getAuthToken();
-    }
 
-    /**
-     * Returns the {@link FakeData} object used to generate dummy users and auth tokens.
-     * This is written as a separate method to allow mocking of the {@link FakeData}.
-     *
-     * @return a {@link FakeData} instance.
-     */
-    FakeData getFakeData() {
-        return FakeData.getInstance();
-    }
 
     public LoginResponse register(RegisterRequest request) {
         if(request.getUsername() == null){
@@ -68,26 +58,78 @@ public class UserService {
         }else if (request.getImage() == null) {
             throw new RuntimeException("[Bad Request] Missing profile picture");
         }
-        User user = getDummyUser();
-        AuthToken authToken = getDummyAuthToken();
-        return new LoginResponse(user, authToken);
+        DynamoAuthToken dbToken = factory.getAuthDAO().createAuth(request.getUsername());
+        AuthToken authToken = new AuthToken(dbToken.getAuthtoken(),dbToken.getTimestamp());
+        String salt = getSalt();
+        String securePassword = getSecurePassword(request.getPassword(), salt);
+        DynamoUser dbUser = factory.getUserDAO().register(request.getFirstName(),request.getLastName(),postImageToS3(request.getImage(),request.getUsername()),request.getUsername(), securePassword,salt);
+        return new LoginResponse(createUserFromDB(dbUser), authToken);
     }
 
     public GetUserResponse getUser(GetUserRequest request){
         if(request.getAlias() == null){
             throw new RuntimeException("[Bad Request] Missing a user");
         } else if(request.getAuthToken() == null) {
-            throw new RuntimeException("[Bad Request] Missing authtoken");
+            throw new RuntimeException("[Missing Authorization] Missing authtoken");
         }
-        User user = getFakeData().findUserByAlias(request.getAlias());
+        checkToken(request);
+        if(request.getAlias() == null){
+            System.out.println("There is no alias in this request");
+        }
+        DynamoUser dbUser = factory.getUserDAO().getUser(request.getAlias());
+        System.out.println(dbUser.toString());
+//        User user = getFakeData().findUserByAlias(request.getAlias());
+        User user = createUserFromDB(dbUser);
         return new GetUserResponse(user);
+    }
+
+    private User createUserFromDB(DynamoUser dbUser) {
+        return new User(dbUser.getFirstName(),dbUser.getLastName(), dbUser.getUser_handle(), dbUser.getImageURL());
     }
 
     public LogoutResponse logout(LogoutRequest request) {
         if(request.getAuthToken() == null) {
             throw new RuntimeException("[Bad Request] Missing authtoken");
         }
-        //TODO: Implement deleting of user token through userDAO
+        factory.getAuthDAO().deleteAuth(request.getAuthToken().getToken());
         return new LogoutResponse();
     }
+
+
+
+
+
+    private boolean verifyPassword(String suppliedPassword, String securePassword, String salt) {
+        String regeneratedPasswordToVerify = getSecurePassword(suppliedPassword, salt);
+        return securePassword.equals(regeneratedPasswordToVerify);
+    }
+
+    private String getSecurePassword(String password, String salt) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(salt.getBytes());
+            byte[] bytes = md.digest(password.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte aByte : bytes) {
+                sb.append(Integer.toString((aByte & 0xff) + 0x100, 16).substring(1));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return "FAILED TO HASH PASSWORD";
+    }
+
+    private String getSalt() {
+        try {
+            SecureRandom sr = SecureRandom.getInstance("SHA1PRNG", "SUN");
+            byte[] salt = new byte[16];
+            sr.nextBytes(salt);
+            return Base64.getEncoder().encodeToString(salt);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            e.printStackTrace();
+        }
+        return "FAILED TO GET SALT";
+    }
+
 }
